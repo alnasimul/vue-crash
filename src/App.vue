@@ -1,70 +1,108 @@
 <template>
   <div class="container">
-    <Header title="Task Tracker" />
-    <AddTask  @add-task="addTask"/>
-    <Tasks @toggle-reminder="toggleReminder" @delete-task="deleteTask" :tasks="tasks" />
+    <Header
+      @toggle-add-task="toggleAddTask"
+      title="Task Tracker"
+      :showAddTask="showAddTask"
+    />
+    <div v-if="showAddTask">
+      <AddTask @add-task="addTask" />
+    </div>
+    <Tasks
+      @toggle-reminder="toggleReminder"
+      @delete-task="deleteTask"
+      :tasks="tasks"
+    />
   </div>
 </template>
 
 <script>
-
-import Header from "./components/Header"
-import Tasks from "./components/Tasks"
-import AddTask from "./components/AddTask"
-
+import Header from "./components/Header";
+import Tasks from "./components/Tasks";
+import AddTask from "./components/AddTask";
 
 export default {
-  name: 'App',
+  name: "App",
   components: {
     Header,
     Tasks,
-    AddTask
+    AddTask,
   },
   data() {
     return {
-      tasks: []
-    }
+      tasks: [],
+      showAddTask: false,
+    };
   },
   methods: {
-    addTask(task){
-      this.tasks = [...this.tasks, task]
+    toggleAddTask() {
+      this.showAddTask = !this.showAddTask;
     },
-    deleteTask(id){
-      if(confirm('Are you sure?')){
-           this.tasks = this.tasks.filter( task => task.id !== id)
+    async addTask(task) {
+
+      const res = await fetch('api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-type' : 'application/json',
+        },
+        body: JSON.stringify(task)
+      })
+
+      const data = await res.json()
+
+      this.tasks = [...this.tasks, data];
+    },
+   async deleteTask(id) {
+      if (confirm("Are you sure?")) {
+
+        const res = await fetch(`api/tasks/${id}`,{
+          method: 'DELETE'
+        })
+
+        res.status === 200 ? ( this.tasks = this.tasks.filter((task) => task.id !== id) ) : alert('Error deleting task');
       }
     },
-    toggleReminder(id){
-      this.tasks = this.tasks.map((task) => task.id === id ? {...task, reminder: !task.reminder} : task) 
-    }
+   async toggleReminder(id) {
+      const taskToToggle = await this.fetchTask(id);
+      const updTask = { ...taskToToggle, reminder: !taskToToggle.reminder }
+
+      const res = await fetch(`api/tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-type' : 'application/json'
+        },
+        body: JSON.stringify(updTask)
+      })
+
+      const data = await res.json()
+
+      this.tasks = this.tasks.map((task) =>
+        task.id === id ? { ...task, reminder: data.reminder } : task
+      );
+    },
+    async fetchTasks() {
+      const res = await fetch("api/tasks");
+
+      const data = await res.json();
+
+      return data;
+    },
+    async fetchTask(id) {
+      const res = await fetch(`api/tasks/${id}`);
+
+      const data = await res.json();
+
+      return data;
+    },
   },
-  created(){
-    this.tasks = [
-      {
-        id: 1,
-        text: 'Doctors Appointment',
-        day: 'March 1st at 2:30pm',
-        reminder: true
-      },
-      {
-        id: 2,
-        text: 'Meeting at School',
-        day: 'March 3rd at 1:30pm',
-        reminder: true
-      },
-      {
-        id: 3,
-        text: 'Food Shopping',
-        day: 'March 3rd at 11:00am',
-        reminder: false
-      },
-    ]
-  }
-}
+  async created() {
+    this.tasks = await this.fetchTasks();
+  },
+};
 </script>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400&display=swap");
 
 * {
   box-sizing: border-box;
@@ -73,7 +111,7 @@ export default {
 }
 
 body {
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
 }
 
 .container {
